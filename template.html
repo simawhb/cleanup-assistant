@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>驷马C盘清理助手</title>
+<style>
+  :root {
+    --bg: #0f1117; --card: #1a1d27; --border: #2a2d3a;
+    --text: #e4e4e7; --muted: #71717a; --accent: #6366f1;
+    --green: #22c55e; --red: #ef4444; --yellow: #eab308; --cyan: #06b6d4;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  .header { padding: 24px 32px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .header h1 { font-size: 20px; font-weight: 600; }
+  .header h1 span { color: var(--accent); }
+  .header .meta { color: var(--muted); font-size: 13px; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px 32px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+  .tab { padding: 10px 20px; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; transition: all 0.2s; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .stat-card .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .stat-card .value { font-size: 28px; font-weight: 700; }
+  .stat-card .value.green { color: var(--green); }
+  .stat-card .value.cyan { color: var(--cyan); }
+  .stat-card .value.yellow { color: var(--yellow); }
+
+  .disk-bar-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+  .disk-bar-wrap .title { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+  .disk-bar { height: 28px; background: #2a2d3a; border-radius: 8px; overflow: hidden; display: flex; position: relative; }
+  .disk-bar .used { background: linear-gradient(90deg, var(--accent), #818cf8); transition: width 0.8s ease; }
+  .disk-bar .cache { background: var(--yellow); opacity: 0.7; transition: width 0.8s ease; }
+  .disk-bar-labels { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: var(--muted); }
+
+  .categories { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; }
+  .cat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; user-select: none; }
+  .cat-card:hover { border-color: var(--accent); }
+  .cat-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .cat-card .cat-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .cat-card .cat-name { font-weight: 600; font-size: 15px; }
+  .cat-card .cat-size { color: var(--yellow); font-weight: 600; }
+  .cat-card .cat-items { font-size: 13px; color: var(--muted); line-height: 1.8; }
+  .cat-card .cat-items .item-row { display: flex; justify-content: space-between; }
+  .toggle { width: 40px; height: 22px; background: var(--border); border-radius: 11px; position: relative; transition: background 0.2s; flex-shrink: 0; }
+  .toggle.on { background: var(--accent); }
+  .toggle::after { content: ''; position: absolute; width: 18px; height: 18px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: transform 0.2s; }
+  .toggle.on::after { transform: translateX(18px); }
+
+  .actions { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+  .btn { padding: 12px 28px; border-radius: 10px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: #4f46e5; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-danger { background: var(--red); color: white; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-sm { padding: 6px 14px; font-size: 12px; border-radius: 8px; }
+
+  .result-panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: none; }
+  .result-panel.show { display: block; }
+  .result-panel .title { font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .result-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .result-table th { text-align: left; color: var(--muted); font-weight: 500; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  .result-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .result-table tr:hover { background: rgba(99,102,241,0.05); }
+  .result-table .status-cleaned { color: var(--green); }
+  .result-table .status-dry { color: var(--yellow); }
+  .result-table .status-skipped { color: var(--muted); }
+  .result-table .size-big { color: var(--red); font-weight: 600; }
+  .result-table .size-med { color: var(--yellow); font-weight: 600; }
+  .result-table .size-sm { color: var(--muted); }
+
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .log-box { background: #111318; border-radius: 8px; padding: 16px; margin-top: 12px; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 12px; line-height: 1.8; max-height: 300px; overflow-y: auto; white-space: pre-wrap; color: var(--muted); }
+
+  /* Large files */
+  .lf-filter { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+  .lf-filter select, .lf-filter input { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-size: 13px; }
+  .lf-summary { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+  .lf-path { font-size: 12px; color: var(--muted); }
+
+  /* Modal overlay */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; max-width: 420px; width: 90%; }
+  .modal h3 { margin-bottom: 12px; font-size: 18px; }
+  .modal p { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+  .modal .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
+
+  .copy-toast { position: fixed; bottom: 24px; right: 24px; background: var(--green); color: #000; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; opacity: 0; transition: opacity 0.3s; z-index: 200; }
+  .copy-toast.show { opacity: 1; }
+
+  @media (max-width: 768px) {
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .categories { grid-template-columns: 1fr; }
+    .container { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span>驷马</span>C盘清理助手</h1>
+  <div class="meta">C盘缓存清理 v4.3</div>
+  <div style="margin-left:auto">
+    <select id="langSelect" onchange="switchLang(this.value)" style="background:var(--card);color:var(--text);border:1px solid var(--border);padding:4px 8px;border-radius:4px;font-size:13px">
+      <option value="zh">中文</option>
+      <option value="en">English</option>
+    </select>
+  </div>
+</div>
+
+<div class="container">
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this, 'clean')">Cache Cleanup</div>
+    <div class="tab" onclick="switchTab(this, 'largefiles')">Large Files</div>
+    <div class="tab" onclick="switchTab(this, 'memory')">Memory</div>
+  </div>
+
+  <!-- ===== TAB: CLEANUP ===== -->
+  <div class="tab-content active" id="tab-clean">
+    <div class="stats-row">
+      <div class="stat-card"><div class="label">C: FREE</div><div class="value cyan" id="diskFree">--</div></div>
+      <div class="stat-card"><div class="label">C: TOTAL</div><div class="value" id="diskTotal">--</div></div>
+      <div class="stat-card"><div class="label">EST. CLEANUP</div><div class="value yellow" id="estCleanup">--</div></div>
+      <div class="stat-card"><div class="label">LAST CLEAN</div><div class="value" id="lastClean" style="font-size:16px">--</div></div>
+    </div>
+
+    <div class="disk-bar-wrap">
+      <div class="title">Disk Usage</div>
+      <div class="disk-bar"><div class="used" id="barUsed"></div><div class="cache" id="barCache"></div></div>
+      <div class="disk-bar-labels">
+        <span>Used: <b id="lblUsed">--</b></span>
+        <span>Cache: <b id="lblCache">--</b></span>
+        <span>Free: <b id="lblFree">--</b></span>
+      </div>
+    </div>
+
+    <div class="categories" id="categories"></div>
+
+    <div class="actions">
+      <button class="btn btn-outline" id="btnScan" onclick="scan()">Scan</button>
+      <button class="btn btn-outline" id="btnDryRun" onclick="runCleanup(true)">Preview</button>
+      <button class="btn btn-primary" id="btnClean" onclick="confirmClean()">Clean</button>
+      <button class="btn btn-outline" id="btnExport" onclick="exportReport()" style="display:none">Copy Report</button>
+</div>
+
+<div class="result-panel" id="resultPanel">
+      <div class="title"><span id="resultIcon"></span><span id="resultTitle"></span></div>
+      <div id="resultSummary" style="display:none; margin-bottom:16px; padding:12px; background:var(--card); border-radius:8px; border:1px solid var(--border)">
+        <div style="font-weight:600; margin-bottom:8px">Category Summary</div>
+        <div id="summaryBody"></div>
+      </div>
+      <table class="result-table"><thead><tr><th>Category</th><th>Item</th><th>Size</th><th>Status</th></tr></thead><tbody id="resultBody"></tbody></table>
+      <div class="log-box" id="logBox"></div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: LARGE FILES ===== -->
+  <div class="tab-content" id="tab-largefiles">
+    <div class="lf-filter">
+      <label>Min size:</label>
+      <select id="lfMinSize">
+        <option value="50">50 MB</option>
+        <option value="100" selected>100 MB</option>
+        <option value="200">200 MB</option>
+        <option value="500">500 MB</option>
+        <option value="1000">1 GB</option>
+      </select>
+      <label>Filter:</label>
+      <input type="text" id="lfFilter" placeholder="e.g. .mp4 .zip" style="width:160px">
+      <button class="btn btn-primary btn-sm" id="btnLFScan" onclick="scanLargeFiles()">Scan</button>
+    </div>
+    <div class="lf-summary" id="lfSummary"></div>
+    <div class="result-panel show" id="lfPanel" style="display:none">
+      <table class="result-table">
+        <thead><tr><th>Size</th><th>Name</th><th>Path</th><th>Modified</th><th></th></tr></thead>
+        <tbody id="lfBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== TAB: MEMORY ===== -->
+  <div class="tab-content" id="tab-memory">
+    <div class="stats-row">
+      <div class="stat-card"><div class="label">RAM Used</div><div class="value yellow" id="memUsed">--</div></div>
+      <div class="stat-card"><div class="label">RAM Total</div><div class="value" id="memTotal">--</div></div>
+      <div class="stat-card"><div class="label">RAM Free</div><div class="value green" id="memFree">--</div></div>
+      <div class="stat-card"><div class="label">Usage</div><div class="value" id="memPct">--</div></div>
+    </div>
+
+    <div class="disk-bar-wrap">
+      <div class="title">Memory Usage</div>
+      <div class="disk-bar"><div class="used" id="memBarUsed" style="background:linear-gradient(90deg,var(--yellow),#f59e0b)"></div></div>
+      <div class="disk-bar-labels">
+        <span>Used: <b id="memLblUsed">--</b></span>
+        <span></span>
+        <span>Free: <b id="memLblFree">--</b></span>
+      </div>
+    </div>
+
+    <div id="memProcesses" style="margin-bottom:24px">
+      <div style="font-weight:600;margin-bottom:12px">Top Memory Processes</div>
+      <div id="memProcList" style="color:var(--muted)">Loading...</div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-outline" id="btnMemRefresh" onclick="refreshMemory()">Refresh</button>
+      <button class="btn btn-primary" id="btnMemClean" onclick="cleanMemory(false)">Clean Memory</button>
+      <button class="btn btn-danger" id="btnMemAggressive" onclick="cleanMemory(true)">Aggressive Clean</button>
+    </div>
+
+    <div class="result-panel" id="memResultPanel" style="display:none">
+      <div class="title"><span id="memResultIcon"></span><span id="memResultTitle"></span></div>
+      <div id="memResultSummary" style="margin-bottom:16px;padding:12px;background:var(--card);border-radius:8px;border:1px solid var(--border)"></div>
+      <div class="log-box" id="memLogBox"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal">
+    <h3>Confirm Cleanup</h3>
+    <p id="confirmMsg">This action cannot be undone. Continue?</p>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="copy-toast" id="copyToast">Copied!</div>
+
+<script>
+let currentLang = 'zh';
+const LANG = {
+  zh: {
+    tabs: ['\u7f13\u5b58\u6e05\u7406', '\u5927\u6587\u4ef6\u626b\u63cf', '\u5185\u5b58\u6e05\u7406'],
+    stats: ['C\u76d8\u53ef\u7528', 'C\u76d8\u603b\u91cf', '\u9884\u8ba1\u53ef\u6e05\u7406', '\u4e0a\u6b21\u6e05\u7406'],
+    disk: ['\u78c1\u76d8\u7a7a\u95f4\u5206\u5e03', '\u5df2\u7528:', '\u7f13\u5b58:', '\u53ef\u7528:'],
+    buttons: ['\u626b\u63cf', '\u9884\u89c8\u6e05\u7406', '\u6267\u884c\u6e05\u7406', '\u590d\u5236\u62a5\u544a'],
+    result: ['\u626b\u63cf\u5b8c\u6210', '\u9884\u89c8\u5b8c\u6210', '\u6e05\u7406\u5b8c\u6210', '\u5206\u7c7b\u6c47\u603b', '\u5171 {count} \u9879\uff0c\u53ef\u91ca\u653e {size}', '\u5df2\u91ca\u653e {size}'],
+    modal: ['\u786e\u8ba4\u6e05\u7406', '\u6b64\u64cd\u4f5c\u4e0d\u53ef\u64a4\u9500\uff0c\u7ee7\u7eed\uff1f', '\u53d6\u6d88', '\u786e\u8ba4'],
+    table: ['\u5206\u7c7b', '\u9879\u76ee', '\u5927\u5c0f', '\u72b6\u6001'],
+    status: ['\u5df2\u6e05\u7406', '\u5f85\u6e05\u7406', '\u5df2\u6e05\u7a7a', '\u5df2\u8df3\u8fc7'],
+    toast: '\u5df2\u590d\u5236',
+    largeFiles: ['\u6700\u5c0f\u5927\u5c0f', '\u7b5b\u9009', '\u626b\u63cf', '\u627e\u5230 {count} \u4e2a\u6587\u4ef6\uff0c\u5171 {size} GB'],
+    confirm: '\u8bf7\u81f3\u5c11\u9009\u62e9\u4e00\u4e2a\u5206\u7c7b',
+    memory: ['\u5df2\u7528\u5185\u5b58', '\u603b\u5185\u5b58', '\u53ef\u7528\u5185\u5b58', '\u4f7f\u7528\u7387', '\u5237\u65b0', '\u6e05\u7406\u5185\u5b58', '\u6df1\u5ea6\u6e05\u7406', '\u6e05\u7406\u524d', '\u6e05\u7406\u540e', '\u91ca\u653e\u5185\u5b58', 'Top \u5185\u5b58\u8fdb\u7a0b']
+  },
+  en: {
+    tabs: ['Cache Cleanup', 'Large Files', 'Memory'],
+    stats: ['C: FREE', 'C: TOTAL', 'EST. CLEANUP', 'LAST CLEAN'],
+    disk: ['Disk Usage', 'Used:', 'Cache:', 'Free:'],
+    buttons: ['Scan', 'Preview', 'Clean', 'Copy Report'],
+    result: ['Scan Complete', 'Preview Done', 'Cleanup Done', 'Category Summary', '{count} items, can free {size}', 'Freed {size}'],
+    modal: ['Confirm Cleanup', 'This action cannot be undone. Continue?', 'Cancel', 'Confirm'],
+    table: ['Category', 'Item', 'Size', 'Status'],
+    status: ['Cleaned', 'Pending', 'Emptied', 'Skipped'],
+    toast: 'Copied',
+    largeFiles: ['Min size', 'Filter', 'Scan', '{count} files found, total {size} GB'],
+    confirm: 'Select at least one category',
+    memory: ['RAM Used', 'RAM Total', 'RAM Free', 'Usage', 'Refresh', 'Clean Memory', 'Aggressive Clean', 'Before', 'After', 'Memory Freed', 'Top Memory Processes']
+  }
+};
+
+function t(key, params) {
+  let text = LANG[currentLang][key] || key;
+  if (Array.isArray(text)) return text;
+  if (params && typeof text === 'string') {
+    Object.entries(params).forEach(([k, v]) => text = text.replace(`{${k}}`, v));
+  }
+  return text;
+}
+
+function switchLang(lang) {
+  currentLang = lang;
+  localStorage.setItem('lang', lang);
+  renderAll();
+}
+
+const CATEGORIES = [
+  { id: "temp", name: { zh: "\u7cfb\u7edf\u4e34\u65f6\u6587\u4ef6", en: "System Temp" }, icon: "\ud83d\udcc1", items: { zh: ["\u7528\u6237\u4e34\u65f6\u76ee\u5f55", "Windows\u4e34\u65f6\u76ee\u5f55", "\u5d29\u6e83\u8f6c\u50a8"], en: ["User Temp", "Windows Temp", "Crash Dumps"] }, enabled: true },
+  { id: "dev", name: { zh: "\u5f00\u53d1\u7f13\u5b58", en: "Dev Caches" }, icon: "\u2699\ufe0f", items: { zh: ["npm\u7f13\u5b58", "pip\u7f13\u5b58", "uv\u7f13\u5b58"], en: ["npm cache", "pip cache", "uv cache"] }, enabled: true },
+  { id: "browser", name: { zh: "\u6d4f\u89c8\u5668\u7f13\u5b58", en: "Browser Cache" }, icon: "\ud83c\udf10", items: { zh: ["Edge", "Chrome", "Brave"], en: ["Edge", "Chrome", "Brave"] }, enabled: true },
+  { id: "wupdate", name: { zh: "Windows\u66f4\u65b0", en: "Windows Update" }, icon: "\ud83d\udd04", items: { zh: ["\u66f4\u65b0\u7f13\u5b58"], en: ["SoftwareDistribution"] }, enabled: true },
+  { id: "prefetch", name: { zh: "\u9884\u8bfb\u53d6", en: "Prefetch" }, icon: "\u26a1", items: { zh: ["\u65e7\u9884\u8bfb\u53d6\u6587\u4ef6(>7\u5929)"], en: ["Old prefetch (>7d)"] }, enabled: true },
+  { id: "logs", name: { zh: "\u65e5\u5fd7\u6587\u4ef6", en: "Log Files" }, icon: "\ud83d\udccb", items: { zh: ["CBS\u65e5\u5fd7", "DISM\u65e5\u5fd7", "INetCache"], en: ["CBS", "DISM", "INetCache"] }, enabled: true },
+  { id: "thumbnails", name: { zh: "\u7f29\u7565\u56fe\u7f13\u5b58", en: "Thumbnails" }, icon: "\ud83d\uddbc\ufe0f", items: { zh: ["\u7f29\u7565\u56fe\u7f13\u5b58", "\u56fe\u6807\u7f13\u5b58"], en: ["Thumbnail Cache", "IconCache.db"] }, enabled: true },
+  { id: "delivery", name: { zh: "\u4f20\u9012\u4f18\u5316", en: "Delivery Opt" }, icon: "\ud83d\udce1", items: { zh: ["\u4f20\u9012\u4f18\u5316\u6587\u4ef6"], en: ["DeliveryOptimization"] }, enabled: true },
+  { id: "installer", name: { zh: "\u5b89\u88c5\u7f13\u5b58", en: "Installer Cache" }, icon: "\ud83d\udce6", items: { zh: ["\u8865\u4e01\u7f13\u5b58"], en: ["PatchCache"] }, enabled: true },
+  { id: "recycle", name: { zh: "\u56de\u6536\u7ad9", en: "Recycle Bin" }, icon: "\ud83d\uddd1\ufe0f", items: { zh: ["\u56de\u6536\u7ad9"], en: ["Recycle Bin"] }, enabled: false },
+];
+
+let diskInfo = { free: 0, total: 0, used: 0 };
+let lastResult = null;
+let largeFilesData = [];
+
+/* --- Render All UI --- */
+function renderAll() {
+  // Tabs
+  const tabs = document.querySelectorAll('.tab');
+  tabs[0].textContent = t('tabs')[0];
+  tabs[1].textContent = t('tabs')[1];
+  tabs[2].textContent = t('tabs')[2];
+  // Stats labels
+  const statLabels = document.querySelectorAll('.stat-card .label');
+  t('stats').forEach((txt, i) => { if (statLabels[i]) statLabels[i].textContent = txt; });
+  // Disk section
+  document.querySelector('.disk-bar-wrap .title').textContent = t('disk')[0];
+  const diskLabels = document.querySelectorAll('.disk-bar-labels span');
+  t('disk').slice(1).forEach((txt, i) => { if (diskLabels[i]) diskLabels[i].innerHTML = txt + ' <b id="lbl' + ['Used','Cache','Free'][i] + '">' + (diskLabels[i].querySelector('b')?.textContent || '--') + '</b>'; });
+  // Buttons
+  document.getElementById('btnScan').textContent = t('buttons')[0];
+  document.getElementById('btnDryRun').textContent = t('buttons')[1];
+  document.getElementById('btnClean').textContent = t('buttons')[2];
+  document.getElementById('btnExport').textContent = t('buttons')[3];
+  // Modal
+  document.querySelector('.modal h3').textContent = t('modal')[0];
+  document.querySelector('.modal-actions .btn-outline').textContent = t('modal')[2];
+  document.querySelector('.modal-actions .btn-danger').textContent = t('modal')[3];
+  // Table headers
+  const ths = document.querySelectorAll('.result-table thead th');
+  t('table').forEach((txt, i) => { if (ths[i]) ths[i].textContent = txt; });
+  // Toast
+  document.getElementById('copyToast').textContent = t('toast');
+  // Large files section
+  document.querySelector('.lf-filter label').textContent = t('largeFiles')[0] + ':';
+  document.querySelector('.lf-filter .btn-primary').textContent = t('largeFiles')[2];
+  // Memory section
+  const memLabels = document.querySelectorAll('#tab-memory .stat-card .label');
+  const memKeys = ['memory', 'memory', 'memory', 'memory'];
+  if (memLabels[0]) memLabels[0].textContent = t('memory')[0];
+  if (memLabels[1]) memLabels[1].textContent = t('memory')[1];
+  if (memLabels[2]) memLabels[2].textContent = t('memory')[2];
+  if (memLabels[3]) memLabels[3].textContent = t('memory')[3];
+  document.getElementById('btnMemRefresh').textContent = t('memory')[4];
+  document.getElementById('btnMemClean').textContent = t('memory')[5];
+  document.getElementById('btnMemAggressive').textContent = t('memory')[6];
+  // Re-render categories
+  renderCategories();
+  // Update summary if visible
+  if (lastResult) updateSummaryText();
+}
+
+/* --- Tab Switching --- */
+function switchTab(el, name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+/* --- Categories --- */
+function renderCategories() {
+  document.getElementById("categories").innerHTML = CATEGORIES.map(c => `
+    <div class="cat-card ${c.enabled ? "selected" : ""}" id="cat-${c.id}" onclick="toggleCat('${c.id}')">
+      <div class="cat-header"><span class="cat-name">${c.icon} ${c.name[currentLang]}</span><div class="toggle ${c.enabled ? "on" : ""}" id="tog-${c.id}"></div></div>
+      <div class="cat-items">${c.items[currentLang].map(i => `<div class="item-row"><span>${i}</span></div>`).join("")}</div>
+    </div>`).join("");
+}
+function toggleCat(id) {
+  const cat = CATEGORIES.find(c => c.id === id); cat.enabled = !cat.enabled;
+  document.getElementById(`cat-${id}`).classList.toggle("selected", cat.enabled);
+  document.getElementById(`tog-${id}`).classList.toggle("on", cat.enabled);
+}
+function getEnabledCategories() { return CATEGORIES.filter(c => c.enabled).map(c => c.id); }
+
+/* --- Disk Info --- */
+async function getDiskInfo() {
+  try {
+    const d = await (await fetch("/api/disk")).json();
+    diskInfo = d;
+    document.getElementById("diskFree").textContent = d.freeGB + " GB";
+    document.getElementById("diskTotal").textContent = d.totalGB + " GB";
+    document.getElementById("lblUsed").textContent = d.usedGB + " GB";
+    document.getElementById("lblFree").textContent = d.freeGB + " GB";
+    document.getElementById("barUsed").style.width = (d.usedGB / d.totalGB * 100).toFixed(1) + "%";
+  } catch(e) { console.error("Disk info failed:", e); }
+}
+
+/* --- Scan --- */
+async function scan() {
+  const btn = document.getElementById("btnScan"); btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> ' + (currentLang === 'zh' ? '扫描中...' : 'Scanning...');
+  try {
+    const cats = getEnabledCategories();
+    const qs = cats.length > 0 ? "?categories=" + cats.join(",") : "";
+    const data = await (await fetch("/api/scan" + qs)).json();
+    let totalMB = 0; data.forEach(i => totalMB += i.SizeMB);
+    const totalGB = (totalMB / 1024).toFixed(2);
+    document.getElementById("estCleanup").textContent = totalGB + " GB";
+    document.getElementById("lblCache").textContent = totalGB + " GB";
+    document.getElementById("barCache").style.width = (totalGB / (diskInfo.totalGB || 1) * 100).toFixed(1) + "%";
+    showResult("scan", data);
+  } catch(e) { showLog("Scan failed: " + e.message); }
+  btn.disabled = false; btn.innerHTML = t('buttons')[0];
+}
+
+/* --- Cleanup --- */
+function confirmClean() {
+  if (getEnabledCategories().length === 0) { showLog(t('confirm')); return; }
+  const names = CATEGORIES.filter(c => c.enabled).map(c => c.name[currentLang]).join(", ");
+  document.getElementById("confirmMsg").innerHTML = (currentLang === 'zh' ? '清理: ' : 'Cleaning: ') + `<b>${names}</b><br><br>${t('modal')[1]}`;
+  document.getElementById("confirmModal").classList.add("show");
+  // 设置确认按钮为普通清理
+  const confirmBtn = document.querySelector('.modal-actions .btn-danger');
+  confirmBtn.onclick = function() { closeModal(); doClean(); };
+}
+function closeModal() { document.getElementById("confirmModal").classList.remove("show"); }
+async function doClean() { await runCleanup(false); }
+
+async function runCleanup(dryRun) {
+  const btnId = dryRun ? "btnDryRun" : "btnClean";
+  const btn = document.getElementById(btnId); btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> ${dryRun ? (currentLang === 'zh' ? '预览中...' : 'Previewing...') : (currentLang === 'zh' ? '清理中...' : 'Cleaning...')}`;
+  try {
+    const res = await fetch("/api/clean", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ dryRun, categories: getEnabledCategories() }) });
+    const data = await res.json();
+    if (data.error) { showLog("Error: " + data.error); }
+    else {
+      let saved = data.savedGB || 0;
+      if (saved === 0 && data.items) saved = (data.items.reduce((s, i) => s + (i.SizeMB || 0), 0) / 1024).toFixed(2);
+      lastResult = { saved, items: data.items || [], dryRun };
+      showResult(dryRun ? "dry" : "done", data.items || []);
+      document.getElementById("btnExport").style.display = "";
+      if (!dryRun) { document.getElementById("lastClean").textContent = new Date().toLocaleString("zh-CN"); getDiskInfo(); }
+    }
+  } catch(e) { showLog("Failed: " + e.message); }
+  btn.disabled = false; btn.innerHTML = t('buttons')[dryRun ? 1 : 2];
+}
+
+/* --- Results --- */
+function showResult(type, items) {
+  const panel = document.getElementById("resultPanel"); panel.classList.add("show");
+  const body = document.getElementById("resultBody");
+  if (!items || items.length === 0) {
+    document.getElementById("resultTitle").textContent = t('result')[type === "scan" ? 0 : type === "dry" ? 1 : 2];
+    document.getElementById("resultIcon").textContent = type === "scan" ? "\ud83d\udd0d" : type === "dry" ? "\ud83d\udc41\ufe0f" : "\u2705";
+    body.innerHTML = '<tr><td colspan="4" style="color:var(--muted);text-align:center">' + (currentLang === 'zh' ? '\u65e0\u6570\u636e' : 'No data') + '</td></tr>';
+    document.getElementById("resultSummary").style.display = "none";
+    return;
+  }
+  // Category summary
+  const summary = {};
+  items.forEach(item => {
+    if (!summary[item.Category]) summary[item.Category] = { count: 0, sizeMB: 0 };
+    summary[item.Category].count++;
+    summary[item.Category].sizeMB += item.SizeMB || 0;
+  });
+  const totalMB = Object.values(summary).reduce((s, v) => s + v.sizeMB, 0);
+  const totalSize = totalMB >= 1024 ? (totalMB / 1024).toFixed(2) + " GB" : totalMB.toFixed(0) + " MB";
+  // Title with summary
+  const titleKey = type === "scan" ? 0 : type === "dry" ? 1 : 2;
+  const resultArr = t('result');
+  let summaryTemplate = type === "scan" ? resultArr[4] : resultArr[5];
+  const replaceMap = type === "scan" ? { count: items.length, size: totalSize } : { size: lastResult?.saved ? lastResult.saved + " GB" : totalSize };
+  let summaryText = summaryTemplate;
+  Object.entries(replaceMap).forEach(([k, v]) => summaryText = summaryText.replace(`{${k}}`, v));
+  document.getElementById("resultTitle").textContent = resultArr[titleKey] + " \u2014 " + summaryText;
+  document.getElementById("resultIcon").textContent = type === "scan" ? "\ud83d\udd0d" : type === "dry" ? "\ud83d\udc41\ufe0f" : "\u2705";
+  // Summary panel
+  const summaryDiv = document.getElementById("resultSummary");
+  const summaryBody = document.getElementById("summaryBody");
+  summaryBody.innerHTML = Object.entries(summary).map(([cat, v]) => {
+    const pct = totalMB > 0 ? (v.sizeMB / totalMB * 100).toFixed(1) : 0;
+    const sizeText = v.sizeMB >= 1024 ? (v.sizeMB / 1024).toFixed(2) + " GB" : v.sizeMB.toFixed(0) + " MB";
+    return `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)">
+      <span>${cat} <span style="color:var(--muted)">(${v.count} ${currentLang === 'zh' ? '\u9879' : 'items'})</span></span>
+      <span style="font-weight:600">${sizeText} <span style="color:var(--muted);font-size:12px">${pct}%</span></span>
+    </div>`;
+  }).join("") + `<div style="display:flex;justify-content:space-between;padding:8px 0;font-weight:700;border-top:2px solid var(--accent);margin-top:4px">
+    <span>${currentLang === 'zh' ? '\u5408\u8ba1' : 'Total'}</span>
+    <span>${totalSize}</span>
+  </div>`;
+  summaryDiv.style.display = "";
+  // Detail table
+  const statusMap = { cleaned: 0, "dry-run": 1, emptied: 2 };
+  body.innerHTML = items.map(item => {
+    const sc = item.Status === "cleaned" ? "status-cleaned" : item.Status === "dry-run" ? "status-dry" : "status-skipped";
+    const st = t('status')[statusMap[item.Status]] || item.Status;
+    return `<tr><td>${item.Category}</td><td>${item.Item}</td><td>${item.SizeMB > 0 ? item.SizeMB + " MB" : "-"}</td><td class="${sc}">${st}</td></tr>`;
+  }).join("");
+}
+function showLog(msg) {
+  document.getElementById("resultPanel").classList.add("show");
+  document.getElementById("resultTitle").textContent = currentLang === 'zh' ? '日志' : 'Log';
+  document.getElementById("resultIcon").textContent = "\u26a0\ufe0f";
+  document.getElementById("logBox").textContent += "\n" + new Date().toLocaleTimeString() + " " + msg;
+}
+function exportReport() {
+  if (!lastResult) return;
+  const lines = ["驷马C盘清理助手 Report", "Time: " + new Date().toLocaleString("zh-CN"), "", "Freed: " + lastResult.saved + " GB", "Mode: " + (lastResult.dryRun ? "Preview" : "Actual"), "", "Category\tItem\tSize\tStatus", "-".repeat(60)];
+  (lastResult.items || []).forEach(i => lines.push(`${i.Category}\t${i.Item}\t${i.SizeMB} MB\t${i.Status}`));
+  navigator.clipboard.writeText(lines.join("\n")).then(() => { const t = document.getElementById("copyToast"); t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 2000); });
+}
+
+/* --- Large Files --- */
+async function scanLargeFiles() {
+  const btn = document.getElementById("btnLFScan"); btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  const minMB = document.getElementById("lfMinSize").value;
+  document.getElementById("lfSummary").textContent = currentLang === 'zh' ? '扫描中...' : 'Scanning...';
+  document.getElementById("lfPanel").style.display = "none";
+  try {
+    const data = await (await fetch("/api/largefiles?minMB=" + minMB)).json();
+    largeFilesData = data;
+    renderLargeFiles();
+  } catch(e) {
+    document.getElementById("lfSummary").textContent = (currentLang === 'zh' ? '扫描失败: ' : 'Scan failed: ') + e.message;
+  }
+  btn.disabled = false; btn.innerHTML = t('largeFiles')[2];
+}
+
+function renderLargeFiles() {
+  const filter = document.getElementById("lfFilter").value.toLowerCase().trim();
+  let items = largeFilesData;
+  if (filter) items = items.filter(f => f.Name.toLowerCase().includes(filter) || (f.Ext || "").includes(filter));
+
+  const totalGB = (items.reduce((s, f) => s + f.SizeMB, 0) / 1024).toFixed(2);
+  document.getElementById("lfSummary").textContent = t('largeFiles')[3].replace('{count}', items.length).replace('{size}', totalGB);
+  document.getElementById("lfPanel").style.display = "";
+
+  document.getElementById("lfBody").innerHTML = items.map(f => {
+    const sizeClass = f.SizeMB >= 1000 ? "size-big" : f.SizeMB >= 200 ? "size-med" : "size-sm";
+    const sizeText = f.SizeGB >= 1 ? f.SizeGB + " GB" : f.SizeMB + " MB";
+    return `<tr>
+      <td class="${sizeClass}">${sizeText}</td>
+      <td>${f.Name}</td>
+      <td class="lf-path" title="${f.Path}">${f.Dir}</td>
+      <td>${f.Modified}</td>
+      <td><button class="btn btn-outline btn-sm" onclick="openFolder('${f.Dir.replace(/'/g, "\\'")}')">Open</button></td>
+    </tr>`;
+  }).join("");
+}
+
+function openFolder(path) {
+  fetch("/api/open-folder", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ path }) });
+}
+
+/* --- Toast Notification --- */
+function showToast(icon, msg) {
+  const toast = document.getElementById("copyToast");
+  toast.textContent = (icon ? icon + " " : "") + msg;
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 3000);
+}
+
+/* --- Memory Functions --- */
+async function refreshMemory() {
+  const btn = document.getElementById("btnMemRefresh");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  try {
+    const mem = await (await fetch("/api/memory")).json();
+    document.getElementById("memUsed").textContent = mem.usedGB + " GB";
+    document.getElementById("memTotal").textContent = mem.totalGB + " GB";
+    document.getElementById("memFree").textContent = mem.freeGB + " GB";
+    document.getElementById("memPct").textContent = mem.usedPct + "%";
+
+    const pctColor = mem.usedPct > 80 ? "var(--red)" : mem.usedPct > 60 ? "var(--yellow)" : "var(--green)";
+    document.getElementById("memPct").style.color = pctColor;
+
+    document.getElementById("memLblUsed").textContent = mem.usedGB + " GB";
+    document.getElementById("memLblFree").textContent = mem.freeGB + " GB";
+    document.getElementById("memBarUsed").style.width = mem.usedPct + "%";
+
+    if (mem.usedPct > 80) {
+      document.getElementById("memBarUsed").style.background = "linear-gradient(90deg,var(--red),#dc2626)";
+    } else if (mem.usedPct > 60) {
+      document.getElementById("memBarUsed").style.background = "linear-gradient(90deg,var(--yellow),#f59e0b)";
+    } else {
+      document.getElementById("memBarUsed").style.background = "linear-gradient(90deg,var(--green),#16a34a)";
+    }
+
+    await loadTopProcesses();
+  } catch(e) {
+    console.error("Memory info failed:", e);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = t('memory')[4];
+}
+
+async function loadTopProcesses() {
+  try {
+    const stdout = await (await fetch("/api/memory")).json();
+    const procHtml = "Process list is shown in the cleanup result panel after scanning.";
+    document.getElementById("memProcList").innerHTML = `<div style="font-size:13px">${procHtml}</div>`;
+  } catch(e) {}
+}
+
+async function cleanMemory(aggressive) {
+  const btnId = aggressive ? "btnMemAggressive" : "btnMemClean";
+  const btn = document.getElementById(btnId);
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> ${currentLang === 'zh' ? '清理中...' : 'Cleaning...'}`;
+
+  const panel = document.getElementById("memResultPanel");
+  const logBox = document.getElementById("memLogBox");
+  panel.style.display = "";
+  logBox.textContent = currentLang === 'zh' ? '开始清理内存...\n' : 'Starting memory cleanup...\n';
+
+  try {
+    const res = await fetch("/api/memory-clean", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ aggressive })
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      logBox.textContent += "Error: " + data.error + "\n";
+      document.getElementById("memResultIcon").textContent = "⚠️";
+      document.getElementById("memResultTitle").textContent = "Error";
+    } else {
+      const before = data.before || {};
+      const after = data.after || {};
+      const freedGB = data.freedGB || 0;
+      const freedPct = data.freedPct || 0;
+
+      document.getElementById("memResultIcon").textContent = "✅";
+      document.getElementById("memResultTitle").textContent =
+        (currentLang === 'zh' ? '清理完成' : 'Cleanup Complete') +
+        ` — ${currentLang === 'zh' ? '释放' : 'Freed'} ${freedGB} GB (${freedPct}%)`;
+
+      const summaryDiv = document.getElementById("memResultSummary");
+      summaryDiv.innerHTML = `
+        <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)">
+          <span>${currentLang === 'zh' ? '清理前' : 'Before'}</span>
+          <span>${before.usedGB} GB / ${before.totalGB} GB (${before.usedPct}%)</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)">
+          <span>${currentLang === 'zh' ? '清理后' : 'After'}</span>
+          <span>${after.usedGB} GB / ${after.totalGB} GB (${after.usedPct}%)</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;font-weight:700;border-top:2px solid var(--accent);margin-top:4px">
+          <span>${currentLang === 'zh' ? '释放内存' : 'Memory Freed'}</span>
+          <span style="color:var(--green)">${freedGB} GB (${freedPct}%)</span>
+        </div>
+      `;
+
+      if (data.actions) {
+        data.actions.forEach(a => {
+          const status = a.Status === "done" ? "✅" : a.Status === "dry-run" ? "👁️" : "ℹ️";
+          logBox.textContent += `${status} ${a.Action}: ${a.Detail}\n`;
+        });
+      }
+
+      showToast("✅", `Memory freed: ${freedGB} GB`);
+      refreshMemory();
+    }
+  } catch(e) {
+    logBox.textContent += "Failed: " + e.message + "\n";
+    document.getElementById("memResultIcon").textContent = "⚠️";
+    document.getElementById("memResultTitle").textContent = "Error";
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = aggressive
+    ? (currentLang === 'zh' ? '深度清理' : 'Aggressive Clean')
+    : (currentLang === 'zh' ? '清理内存' : 'Clean Memory');
+}
+
+// Re-filter on input
+document.getElementById("lfFilter").addEventListener("input", renderLargeFiles);
+
+// Init with saved language
+currentLang = localStorage.getItem('lang') || 'zh';
+document.getElementById('langSelect').value = currentLang;
+renderAll();
+getDiskInfo();
+refreshMemory();
+
+</script>
+</body>
+</html>

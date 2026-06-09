@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.log
+*.exe
+server.log
+.env
+*.bak
