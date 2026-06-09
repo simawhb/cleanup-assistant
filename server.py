@@ -129,7 +129,10 @@ def api_health():
 
 @app.route("/")
 def index():
-    return render_template_string(load_template())
+    html = load_template()
+    inject = '<script>(function(){var TK_KEY="cleanup_token";var tk=localStorage.getItem(TK_KEY);if(!tk){tk=prompt("\u8bf7\u8f93\u5165\u8bbf\u95ee\u5bc6\u7801:");if(tk)localStorage.setItem(TK_KEY,tk);}var origFetch=window.fetch;window.fetch=function(url,opts){opts=opts||{};opts.headers=opts.headers||{};if(typeof opts.headers==="object"&&!opts.headers.get){opts.headers["Authorization"]="Bearer "+localStorage.getItem(TK_KEY);}return origFetch(url,opts).then(function(r){if(r.status===401){localStorage.removeItem(TK_KEY);location.reload();}return r;});};})();</script></head>'
+    html = html.replace('</head>', inject, 1)
+    return html
 
 
 @app.route("/api/disk")
