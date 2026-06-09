@@ -15,6 +15,7 @@ import logging
 from pathlib import Path
 from functools import wraps
 from flask import Flask, render_template_string, jsonify, request, abort
+import user_auth
 
 app = Flask(__name__)
 
@@ -113,11 +114,17 @@ def is_safe_path(path):
 def require_token(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if TOKEN:
-            auth = request.headers.get("Authorization", "")
-            if auth != f"Bearer {TOKEN}":
-                log.warning("Unauthorized request to %s", request.path)
-                abort(401)
+        auth = request.headers.get("Authorization", "")
+        token = auth.replace("Bearer ", "") if auth.startswith("Bearer ") else ""
+        if TOKEN and token == TOKEN:
+            pass
+        elif token and user_auth.verify_token(token):
+            pass
+        elif not TOKEN and not token:
+            pass
+        else:
+            log.warning("Unauthorized request to %s", request.path)
+            abort(401)
         return f(*args, **kwargs)
     return wrapper
 
@@ -126,10 +133,41 @@ def require_token(f):
 def api_health():
     return jsonify({"status": "ok", "version": "4.3"})
 
+@app.route("/api/register", methods=["POST"])
+def api_register():
+    body = request.get_json(force=True)
+    result = user_auth.register(body.get("username",""), body.get("password",""))
+    if "error" in result:
+        return jsonify(result), 400
+    return jsonify(result)
+
+@app.route("/api/login", methods=["POST"])
+def api_login():
+    body = request.get_json(force=True)
+    result = user_auth.login(body.get("username",""), body.get("password",""))
+    if "error" in result:
+        return jsonify(result), 401
+    return jsonify(result)
+
+@app.route("/api/logs")
+@require_token
+def api_logs():
+    return jsonify(user_auth.get_logs())
+
+@app.route("/api/users")
+@require_token
+def api_users():
+    return jsonify(user_auth.get_users())
+
 
 @app.route("/")
 def index():
     html = load_template()
+    login_overlay = ""
+    login_file = SCRIPT_DIR / "login.html"
+    if login_file.exists():
+        login_overlay = login_file.read_text(encoding="utf-8")
+    html = html.replace("</head>", login_overlay + "</head>", 1)
     inject = '<script>(function(){var TK_KEY="cleanup_token";var tk=localStorage.getItem(TK_KEY);if(!tk){tk=prompt("\u8bf7\u8f93\u5165\u8bbf\u95ee\u5bc6\u7801:");if(tk)localStorage.setItem(TK_KEY,tk);}var origFetch=window.fetch;window.fetch=function(url,opts){opts=opts||{};opts.headers=opts.headers||{};if(typeof opts.headers==="object"&&!opts.headers.get){opts.headers["Authorization"]="Bearer "+localStorage.getItem(TK_KEY);}return origFetch(url,opts).then(function(r){if(r.status===401){localStorage.removeItem(TK_KEY);location.reload();}return r;});};})();</script></head>'
     html = html.replace('</head>', inject, 1)
     return html

@@ -1,0 +1,46 @@
+﻿<div id="authOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,17,23,0.95);z-index:9999;display:flex;align-items:center;justify-content:center">
+<div style="background:#1a1d27;border:1px solid #2a2d3a;border-radius:16px;padding:40px;width:360px;text-align:center">
+<h2 style="margin-bottom:24px;color:#e4e4e7">C盘清理助手</h2>
+<div style="display:flex;gap:8px;margin-bottom:20px;justify-content:center">
+<button onclick="showTab(0)" id="tab0" style="padding:8px 20px;border-radius:8px;border:1px solid #6366f1;background:#6366f1;color:#fff;cursor:pointer">登录</button>
+<button onclick="showTab(1)" id="tab1" style="padding:8px 20px;border-radius:8px;border:1px solid #2a2d3a;background:transparent;color:#71717a;cursor:pointer">注册</button>
+</div>
+<div id="loginForm">
+<input id="loginUser" placeholder="用户名" style="width:100%;padding:12px;border-radius:8px;border:1px solid #2a2d3a;background:#0f1117;color:#e4e4e7;margin-bottom:12px;box-sizing:border-box">
+<input id="loginPass" type="password" placeholder="密码" style="width:100%;padding:12px;border-radius:8px;border:1px solid #2a2d3a;background:#0f1117;color:#e4e4e7;margin-bottom:16px;box-sizing:border-box">
+<button onclick="doLogin()" style="width:100%;padding:12px;border-radius:8px;border:none;background:#6366f1;color:#fff;font-weight:600;cursor:pointer">登录</button>
+</div>
+<div id="registerForm" style="display:none">
+<input id="regUser" placeholder="用户名(>=3位)" style="width:100%;padding:12px;border-radius:8px;border:1px solid #2a2d3a;background:#0f1117;color:#e4e4e7;margin-bottom:12px;box-sizing:border-box">
+<input id="regPass" type="password" placeholder="密码(>=6位)" style="width:100%;padding:12px;border-radius:8px;border:1px solid #2a2d3a;background:#0f1117;color:#e4e4e7;margin-bottom:16px;box-sizing:border-box">
+<button onclick="doRegister()" style="width:100%;padding:12px;border-radius:8px;border:none;background:#22c55e;color:#fff;font-weight:600;cursor:pointer">注册</button>
+</div>
+<p id="authMsg" style="color:#ef4444;margin-top:12px;font-size:13px"></p>
+</div>
+</div>
+<script>
+function showTab(n){
+  document.getElementById("loginForm").style.display=n===0?"block":"none";
+  document.getElementById("registerForm").style.display=n===1?"block":"none";
+  document.getElementById("tab0").style.cssText=n===0?"padding:8px 20px;border-radius:8px;border:1px solid #6366f1;background:#6366f1;color:#fff;cursor:pointer":"padding:8px 20px;border-radius:8px;border:1px solid #2a2d3a;background:transparent;color:#71717a;cursor:pointer";
+  document.getElementById("tab1").style.cssText=n===1?"padding:8px 20px;border-radius:8px;border:1px solid #6366f1;background:#6366f1;color:#fff;cursor:pointer":"padding:8px 20px;border-radius:8px;border:1px solid #2a2d3a;background:transparent;color:#71717a;cursor:pointer";
+}
+function doLogin(){
+  var u=document.getElementById("loginUser").value,p=document.getElementById("loginPass").value;
+  fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,password:p})})
+  .then(function(r){return r.json()}).then(function(d){
+    if(d.token){localStorage.setItem("cleanup_token",d.token);document.getElementById("authOverlay").style.display="none";location.reload()}
+    else{document.getElementById("authMsg").textContent=d.error||"登录失败"}
+  }).catch(function(){document.getElementById("authMsg").textContent="网络错误"});
+}
+function doRegister(){
+  var u=document.getElementById("regUser").value,p=document.getElementById("regPass").value;
+  fetch("/api/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,password:p})})
+  .then(function(r){return r.json()}).then(function(d){
+    if(d.ok){document.getElementById("authMsg").style.color="#22c55e";document.getElementById("authMsg").textContent="注册成功，请登录";showTab(0)}
+    else{document.getElementById("authMsg").style.color="#ef4444";document.getElementById("authMsg").textContent=d.error||"注册失败"}
+  }).catch(function(){document.getElementById("authMsg").textContent="网络错误"});
+}
+var tk=localStorage.getItem("cleanup_token");
+if(tk){document.getElementById("authOverlay").style.display="none"}
+</script>

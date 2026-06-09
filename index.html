@@ -1,0 +1,154 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>驷马C盘清理助手 - 智能清理，释放空间</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f1117;color:#e4e4e7;line-height:1.6}
+.container{max-width:1100px;margin:0 auto;padding:0 24px}
+
+/* Hero */
+.hero{padding:80px 0 60px;text-align:center}
+.hero h1{font-size:42px;font-weight:700;margin-bottom:16px}
+.hero h1 span{color:#6366f1}
+.hero p{font-size:18px;color:#71717a;max-width:600px;margin:0 auto 32px}
+.hero-btns{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+.btn{padding:14px 32px;border-radius:10px;font-size:16px;font-weight:600;text-decoration:none;transition:all .2s;cursor:pointer;border:none}
+.btn-primary{background:#6366f1;color:#fff}
+.btn-primary:hover{background:#4f46e5}
+.btn-outline{background:transparent;color:#e4e4e7;border:1px solid #2a2d3a}
+.btn-outline:hover{border-color:#6366f1;color:#6366f1}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:40px 0}
+.stat-card{background:#1a1d27;border:1px solid #2a2d3a;border-radius:12px;padding:28px;text-align:center}
+.stat-card .num{font-size:36px;font-weight:700;color:#6366f1}
+.stat-card .label{color:#71717a;font-size:14px;margin-top:4px}
+
+/* Features */
+.features{padding:60px 0}
+.features h2{text-align:center;font-size:28px;margin-bottom:40px}
+.feature-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px}
+.feature-card{background:#1a1d27;border:1px solid #2a2d3a;border-radius:12px;padding:28px}
+.feature-card .icon{font-size:32px;margin-bottom:12px}
+.feature-card h3{font-size:18px;margin-bottom:8px}
+.feature-card p{color:#71717a;font-size:14px}
+
+/* How */
+.how{padding:60px 0}
+.how h2{text-align:center;font-size:28px;margin-bottom:40px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.step{background:#1a1d27;border:1px solid #2a2d3a;border-radius:12px;padding:28px;text-align:center}
+.step .num{width:40px;height:40px;background:#6366f1;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;margin-bottom:12px}
+.step h3{margin-bottom:8px}
+.step p{color:#71717a;font-size:14px}
+
+/* Pricing */
+.pricing{padding:60px 0}
+.pricing h2{text-align:center;font-size:28px;margin-bottom:40px}
+.price-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;max-width:700px;margin:0 auto}
+.price-card{background:#1a1d27;border:1px solid #2a2d3a;border-radius:12px;padding:32px;text-align:center}
+.price-card.featured{border-color:#6366f1}
+.price-card h3{font-size:20px;margin-bottom:8px}
+.price-card .price{font-size:36px;font-weight:700;color:#6366f1;margin:12px 0}
+.price-card .price span{font-size:14px;color:#71717a}
+.price-card ul{list-style:none;text-align:left;margin:20px 0}
+.price-card ul li{padding:6px 0;color:#71717a;font-size:14px}
+.price-card ul li::before{content:'✓ ';color:#22c55e}
+
+/* Footer */
+.footer{padding:40px 0;border-top:1px solid #2a2d3a;text-align:center;color:#71717a;font-size:13px}
+.footer a{color:#6366f1;text-decoration:none}
+
+@media(max-width:768px){
+.hero h1{font-size:28px}
+.stats,.feature-grid,.steps,.price-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+<div class="container">
+<h1>驷马<span>C盘清理助手</span></h1>
+<p>智能扫描、一键清理、安全可控。让您的电脑重获新生。</p>
+<div class="hero-btns">
+<a class="btn btn-primary" href="https://github.com/simawhb/cleanup-assistant/releases">免费下载</a>
+<a class="btn btn-outline" href="https://github.com/simawhb/cleanup-assistant">查看源码</a>
+</div>
+</div>
+</div>
+
+<div class="container">
+<div class="stats">
+<div class="stat-card"><div class="num">2.6GB+</div><div class="label">平均可清理空间</div></div>
+<div class="stat-card"><div class="num">9类</div><div class="label">清理场景覆盖</div></div>
+<div class="stat-card"><div class="num">100%</div><div class="label">本地运行，数据不出境</div></div>
+</div>
+</div>
+
+<div class="features">
+<div class="container">
+<h2>核心功能</h2>
+<div class="feature-grid">
+<div class="feature-card"><div class="icon">🔍</div><h3>智能扫描</h3><p>自动识别临时文件、开发缓存、浏览器缓存、系统日志等 9 大类可清理项。</p></div>
+<div class="feature-card"><div class="icon">🛡️</div><h3>安全可控</h3><p>预览模式先看再清，Token 鉴权保护，关键文件自动跳过。</p></div>
+<div class="feature-card"><div class="icon">📊</div><h3>清理报告</h3><p>详细展示每个项目的大小和状态，清理结果一目了然。</p></div>
+<div class="feature-card"><div class="icon">🧠</div><h3>内存优化</h3><p>实时监控内存使用，支持普通和强力两种清理模式。</p></div>
+<div class="feature-card"><div class="icon">📁</div><h3>大文件扫描</h3><p>快速定位占用空间的大文件，支持自定义扫描路径和阈值。</p></div>
+<div class="feature-card"><div class="icon">🌐</div><h3>Web 界面</h3><p>现代化 Web UI，支持远程访问，局域网内任意设备操作。</p></div>
+</div>
+</div>
+</div>
+
+<div class="how">
+<div class="container">
+<h2>三步开始</h2>
+<div class="steps">
+<div class="step"><div class="num">1</div><h3>下载解压</h3><p>从 GitHub Release 下载压缩包，解压到任意目录。</p></div>
+<div class="step"><div class="num">2</div><h3>双击启动</h3><p>运行 start.bat，服务自动启动，浏览器自动打开。</p></div>
+<div class="step"><div class="num">3</div><h3>一键清理</h3><p>点击扫描，预览结果，确认清理。简单安全。</p></div>
+</div>
+</div>
+</div>
+
+<div class="pricing">
+<div class="container">
+<h2>版本选择</h2>
+<div class="price-grid">
+<div class="price-card">
+<h3>免费版</h3>
+<div class="price">¥0<span></span></div>
+<ul>
+<li>单机使用</li>
+<li>全类别清理</li>
+<li>Web UI 界面</li>
+<li>基础安全保护</li>
+</ul>
+<a class="btn btn-outline" href="https://github.com/simawhb/cleanup-assistant/releases">免费下载</a>
+</div>
+<div class="price-card featured">
+<h3>Pro 版</h3>
+<div class="price">¥99<span>/年</span></div>
+<ul>
+<li>多机集中管理</li>
+<li>定时自动清理</li>
+<li>清理报告导出</li>
+<li>优先技术支持</li>
+</ul>
+<a class="btn btn-primary" href="#">即将推出</a>
+</div>
+</div>
+</div>
+</div>
+
+<div class="footer">
+<div class="container">
+<p>驷马C盘清理助手 &copy; 2026 | <a href="https://github.com/simawhb/cleanup-assistant">GitHub</a> | <a href="https://github.com/simawhb">simawhb</a></p>
+</div>
+</div>
+
+</body>
+</html>
